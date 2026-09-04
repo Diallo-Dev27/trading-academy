@@ -269,7 +269,7 @@
       gap: 40px;
       animation: fadeUp .8s .55s both;
     }
-    .stat-item { }
+    /* .stat-item { } */
 
     .stat-num {
       font-family: var(--font-head);

@@ -79,7 +79,7 @@
     btn.disabled = true;
     btn.style.opacity = '.7';
 
-    fetch('http://localhost:3000/register', {
+    fetch('https://trading-academy-zvks.onrender.com/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
