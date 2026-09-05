@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-const nodemailer = require('nodemailer');
 const mongoose = require('mongoose');
+const SibApiV3Sdk = require('@getbrevo/brevo');
 require('dotenv').config();
 
 const app = express();
@@ -13,7 +13,7 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ MongoDB connected!'))
   .catch(err => console.log('❌ MongoDB error:', err));
 
-// Registration Model
+// ── Registration Model ──
 const registrationSchema = new mongoose.Schema({
   firstName: { type: String, required: true },
   lastName:  { type: String, required: true },
@@ -24,20 +24,10 @@ const registrationSchema = new mongoose.Schema({
 });
 const Registration = mongoose.model('Registration', registrationSchema);
 
-// Email Transporter 
-const transporter = nodemailer.createTransport({
-  host:'smtp-relay.brevo.com',
-  port:587 ,
-  secure: false,
-  auth:{
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-    tls: {
-    rejectUnauthorized: false
-  }
-  
-});
+// ── Brevo API Setup ──
+const brevoClient = SibApiV3Sdk.ApiClient.instance;
+brevoClient.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
+const transactionalApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
 // ── Test Route ──
 app.get('/', (req, res) => {
@@ -58,12 +48,12 @@ app.post('/register', async (req, res) => {
     const newUser = new Registration({ firstName, lastName, email, level, market });
     await newUser.save();
 
-    // Send confirmation email
-    await transporter.sendMail({
-      from: `"TradeAcademy" <diallomamadouyassne@gmail.com>`,
-      to: email,
+    // Send confirmation email via Brevo API
+    await transactionalApi.sendTransacEmail({
+      sender: { name: 'TradeAcademy', email: 'diallomamadouyassne@gmail.com' },
+      to: [{ email: email }],
       subject: '🚀 Welcome to TradeAcademy!',
-      html: `
+      htmlContent: `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#080c10;color:#e8edf3;padding:40px;border-radius:12px;">
           <h1 style="color:#f0c040;font-size:32px;">Welcome ${firstName}! 🎉</h1>
           <p style="color:#6b8099;">You are now registered on <strong style="color:#f0c040;">TradeAcademy</strong>.</p>
