@@ -1,8 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const SibApiV3Sdk = require('@getbrevo/brevo');
-
+const Brevo = require('@getbrevo/brevo');
 
 const app = express();
 app.use(cors());
@@ -25,9 +24,8 @@ const registrationSchema = new mongoose.Schema({
 const Registration = mongoose.model('Registration', registrationSchema);
 
 // ── Brevo API Setup ──
-const brevoClient = SibApiV3Sdk.ApiClient.instance;
-brevoClient.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
-const transactionalApi = new SibApiV3Sdk.TransactionalEmailsApi();
+const apiInstance = new Brevo.TransactionalEmailsApi();
+apiInstance.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
 
 // ── Test Route ──
 app.get('/', (req, res) => {
@@ -49,7 +47,7 @@ app.post('/register', async (req, res) => {
     await newUser.save();
 
     // Send confirmation email via Brevo API
-    await transactionalApi.sendTransacEmail({
+    await apiInstance.sendTransacEmail({
       sender: { name: 'TradeAcademy', email: 'diallomamadouyassne@gmail.com' },
       to: [{ email: email }],
       subject: '🚀 Welcome to TradeAcademy!',
