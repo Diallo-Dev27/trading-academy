@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const { TransactionalEmailsApi, SendSmtpEmail } = require('@getbrevo/brevo');
+const axios = require('axios');
 
 const app = express();
 app.use(cors());
@@ -23,9 +23,6 @@ const registrationSchema = new mongoose.Schema({
 });
 const Registration = mongoose.model('Registration', registrationSchema);
 
-// ── Brevo API Setup ──
-const apiInstance = new TransactionalEmailsApi();
-apiInstance.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
 // ── Test Route ──
 app.get('/', (req, res) => {
   res.json({ message: '🚀 TradeAcademy backend is running!' });
@@ -35,7 +32,6 @@ app.get('/', (req, res) => {
 app.post('/register', async (req, res) => {
   const { firstName, lastName, email, level, market } = req.body;
 
-  // Check required fields
   if (!firstName || !lastName || !email || !level) {
     return res.status(400).json({ error: 'Missing required fields.' });
   }
@@ -45,8 +41,8 @@ app.post('/register', async (req, res) => {
     const newUser = new Registration({ firstName, lastName, email, level, market });
     await newUser.save();
 
-    // Send confirmation email via Brevo API
-    await apiInstance.sendTransacEmail({
+    // Send email via Brevo API
+    await axios.post('https://api.brevo.com/v3/smtp/email', {
       sender: { name: 'TradeAcademy', email: 'diallomamadouyassne@gmail.com' },
       to: [{ email: email }],
       subject: '🚀 Welcome to TradeAcademy!',
@@ -65,6 +61,11 @@ app.post('/register', async (req, res) => {
           <p style="color:#6b8099;font-size:11px;">⚠️ This site is for educational purposes only. Nothing here constitutes financial advice.</p>
         </div>
       `
+    }, {
+      headers: {
+        'api-key': process.env.BREVO_API_KEY,
+        'Content-Type': 'application/json'
+      }
     });
 
     res.status(201).json({ message: '✅ Registration successful! Email sent.' });
