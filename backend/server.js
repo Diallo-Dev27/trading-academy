@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const Brevo = require('@getbrevo/brevo');
+const { TransactionalEmailsApi, SendSmtpEmail } = require('@getbrevo/brevo');
 
 const app = express();
 app.use(cors());
@@ -24,9 +24,8 @@ const registrationSchema = new mongoose.Schema({
 const Registration = mongoose.model('Registration', registrationSchema);
 
 // ── Brevo API Setup ──
-const apiInstance = new Brevo.TransactionalEmailsApi();
+const apiInstance = new TransactionalEmailsApi();
 apiInstance.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
-
 // ── Test Route ──
 app.get('/', (req, res) => {
   res.json({ message: '🚀 TradeAcademy backend is running!' });
