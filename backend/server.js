@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const SibApiV3Sdk = require('@getbrevo/brevo');
-require('dotenv').config();
+
 
 const app = express();
 app.use(cors());
