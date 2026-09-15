@@ -2,10 +2,29 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const axios = require('axios');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const { body, validationResult } = require('express-validator');
 
 const app = express();
-app.use(cors());
+
+// ── Security Headers ──
+app.use(helmet());
+
+// ── CORS restreint à Netlify ──
+app.use(cors({
+  origin: 'https://trading-academic.netlify.app'
+}));
+
 app.use(express.json());
+
+// ── Rate Limiting ──
+const limiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 heure
+  max: 5,                    // max 5 requêtes par IP par heure
+  message: { error: '❌ Too many requests. Please try again later.' }
+});
+app.use('/register', limiter);
 
 // ── Connect to MongoDB ──
 mongoose.connect(process.env.MONGO_URI)
@@ -29,12 +48,20 @@ app.get('/', (req, res) => {
 });
 
 // ── Registration Route ──
-app.post('/register', async (req, res) => {
-  const { firstName, lastName, email, level, market } = req.body;
+app.post('/register', [
+  body('firstName').trim().notEmpty().withMessage('First name is required'),
+  body('lastName').trim().notEmpty().withMessage('Last name is required'),
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('level').notEmpty().withMessage('Level is required')
+], async (req, res) => {
 
-  if (!firstName || !lastName || !email || !level) {
-    return res.status(400).json({ error: 'Missing required fields.' });
+  // Validation errors
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: errors.array()[0].msg });
   }
+
+  const { firstName, lastName, email, level, market } = req.body;
 
   try {
     // Save to database
