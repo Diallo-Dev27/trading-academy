@@ -20,8 +20,8 @@ app.use(express.json());
 
 // ── Rate Limiting ──
 const limiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 heure
-  max: 5,                    // max 5 requêtes par IP par heure
+  windowMs: 60 * 60 * 1000,
+  max: 5,
   message: { error: '❌ Too many requests. Please try again later.' }
 });
 app.use('/register', limiter);
@@ -55,7 +55,6 @@ app.post('/register', [
   body('level').notEmpty().withMessage('Level is required')
 ], async (req, res) => {
 
-  // Validation errors
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ error: errors.array()[0].msg });
@@ -64,11 +63,9 @@ app.post('/register', [
   const { firstName, lastName, email, level, market } = req.body;
 
   try {
-    // Save to database
     const newUser = new Registration({ firstName, lastName, email, level, market });
     await newUser.save();
 
-    // Send email via Brevo API
     await axios.post('https://api.brevo.com/v3/smtp/email', {
       sender: { name: 'TradeAcademy', email: 'diallomamadouyassne@gmail.com' },
       to: [{ email: email }],
@@ -103,6 +100,85 @@ app.post('/register', [
     }
     console.error(err);
     res.status(500).json({ error: '❌ Server error.' });
+  }
+});
+
+// ── Admin Route ──
+app.get('/admin', async (req, res) => {
+  const { password } = req.query;
+
+  if (password !== process.env.ADMIN_PASSWORD) {
+    return res.status(401).send(`
+      <div style="font-family:Arial,sans-serif;text-align:center;padding:100px;background:#080c10;color:#e8edf3;min-height:100vh;">
+        <h1 style="color:#ff4d6a;">❌ Access Denied</h1>
+        <p style="color:#6b8099;">Wrong password. Try again.</p>
+        <a href="/admin?password=" style="color:#f0c040;">Go back</a>
+      </div>
+    `);
+  }
+
+  try {
+    const users = await Registration.find().sort({ date: -1 });
+    const rows = users.map(u => `
+      <tr>
+        <td>${u.firstName} ${u.lastName}</td>
+        <td>${u.email}</td>
+        <td>${u.level}</td>
+        <td>${u.market || 'N/A'}</td>
+        <td>${new Date(u.date).toLocaleDateString()}</td>
+      </tr>
+    `).join('');
+
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>TradeAcademy Admin</title>
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: Arial, sans-serif; background: #080c10; color: #e8edf3; padding: 40px; }
+          h1 { color: #f0c040; font-size: 36px; margin-bottom: 8px; }
+          .subtitle { color: #6b8099; margin-bottom: 32px; }
+          .stats { display: flex; gap: 20px; margin-bottom: 32px; }
+          .stat { background: #141c26; border: 1px solid #1e2d3e; border-radius: 12px; padding: 24px 32px; }
+          .stat-num { font-size: 42px; color: #f0c040; font-weight: bold; }
+          .stat-label { font-size: 13px; color: #6b8099; margin-top: 4px; }
+          table { width: 100%; border-collapse: collapse; background: #141c26; border-radius: 12px; overflow: hidden; }
+          th { background: #1e2d3e; color: #f0c040; padding: 14px 18px; text-align: left; font-size: 13px; letter-spacing: .05em; }
+          td { padding: 14px 18px; border-bottom: 1px solid #1e2d3e; font-size: 14px; color: #e8edf3; }
+          tr:last-child td { border-bottom: none; }
+          tr:hover td { background: #1a2535; }
+        </style>
+      </head>
+      <body>
+        <h1>🏦 TradeAcademy Admin</h1>
+        <p class="subtitle">Dashboard — All Registrations</p>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-num">${users.length}</div>
+            <div class="stat-label">Total Registrations</div>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Level</th>
+              <th>Market</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.length > 0 ? rows : '<tr><td colspan="5" style="text-align:center;color:#6b8099;">No registrations yet</td></tr>'}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
   }
 });
 
